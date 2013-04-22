@@ -34,7 +34,7 @@ double tic() {
 //stolen code here
 class PartyTime {
 
-  //bool m_arduino; // send tag detections to serial port?
+  bool m_arduino; // send tag detections to serial port?
 
   double m_dAzimuth;
   double m_cAzimuth;
@@ -54,6 +54,7 @@ public:
   // default constructor
   PartyTime() :
     // default settings, most can be modified through command line options (see below)
+    m_arduino(false),
     m_dAzimuth(10),
     m_cAzimuth(3),
     m_dAltitude(7),
@@ -64,7 +65,12 @@ public:
     m_TopThruster(0)
    {}
 
-  // changing the tag family
+  void setup() {
+    // prepare serial port for communication with Arduino
+    if (m_arduino) {
+      m_serial.open("/dev/ttyACM0");
+    }
+  }
 
 // not stolen code here
 
@@ -95,6 +101,19 @@ public:
     		m_LeftThruster = 12;
     		m_RightThruster = 12;
     	}
+
+    	if (m_arduino) {
+			// here put information to be printed to serial port
+    		// m_serial.print(detections[0].id);
+			 // m_serial.print(",");
+			 // m_serial.print(translation(0));
+			 // m_serial.print(",");
+			 // m_serial.print(translation(1));
+			  //m_serial.print(",");
+			  //m_serial.print(translation(2));
+			  //m_serial.print("\n");
+			}
+		}
     }
   }
 

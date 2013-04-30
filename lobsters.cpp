@@ -36,26 +36,39 @@ double tic() {
 //stolen code here
 class PartyTime {
 
+	// serial ports open?
 	bool m_arduino; // send directions to serial port?
+	bool m_serialLucille; //receive information from acoustics system
+	bool m_serialJackie; //receive information from sensors
 
-	double m_pitch; //from Jackie
-	double m_roll; //from Jackie
-	double m_yaw; //from Jackie
+	//current orientation of lobsterbot, from Jackie
+	double m_pitch;
+	double m_roll;
+	double m_yaw; //
+	double m_headingIs;
 
-	double m_Xis; //from Lucille
+	// current position of lobsterbot, from Lucille
+	double m_Xis;
+	double m_Yis;
+
+	//goal position/orientation of lobsterbot
 	double m_Xgoal; //obtained from path
-	double m_Yis; //from Lucille
 	double m_Ygoal; //obtained from path
-	double m_headingIs; //calculated here, referenced to magnetic north
-	double m_headingGoal; //calculated here
+
+	//thruster commands
 	double m_LeftThrust;
 	double m_RightThrust;
 	double m_TopThrust;
-	int ind;
+
+	//path variables
 	double m_Xwidth;
 	double m_Ywidth;
 	double m_numCoords;
 	double m_path[][];
+	int ind;
+
+	double depthTic;
+	double headingTic;
 
 	Serial m_serial;
 
@@ -72,7 +85,9 @@ public:
 
 			ind(0),
 
-			m_Xwidth(10), m_Ywidth(10), m_numCoords(121)
+			m_Xwidth(10), m_Ywidth(10), m_numCoords(121),
+
+			depthTic(0), headingTic(0), depthIs(0), headingIs(0)
 
 	{
 	}
@@ -98,10 +113,36 @@ public:
 
 	void loop() {
 		while (true) {
-			double depthErr;
-			double headingCurr;
-			double headingPrev;
-			double carrotPrev;
+			double depthIs;
+			double Xis;
+			double Yis;
+			double pitch;
+			double roll;
+			double yaw;
+			int emergency;
+			// Lucille is sending in information from acoustics
+			if (m_serialLucille) {
+				depthIs = 0;
+				Xis = 0;
+				Yis = 0;
+			}
+			// Jackie is sending in information from sensors
+			if (m_serialJackie) {
+				pitch = 0;
+				roll = 0;
+				yaw = 0;
+				emergency = 0;
+
+			}
+			if (emergency == 1) {
+				break;
+			}
+
+			double Xgoal = [ind][0];;
+			double Ygoal = [ind][1];
+
+			//calculate heading using pitch/roll/yaw
+			double headingIs = 0; //read in from serial port
 
 			if (Xgoal - r) < Xis < (Xgoal + r) && (Ygoal - r) < Yis < (Ygoal + r) {
 				ind++;
@@ -112,34 +153,38 @@ public:
 			// carrotPrev is our last target
 			if (ind == 0) {
 				carrotPrev = path(0);
-			else {
-				carrotPrev = path(ind - 1);
+				else {
+					carrotPrev = path(ind - 1);
+				}
+			}
+
+			// calculates heading relative to +y direction
+			double headingGoal = 90 - atan2((Ygoal - Yis), (Xgoal - Xis));
+			// heading error to be used for PD control
+			double headingErr = headingGoal - headingIs;
+
+			//PD control of left thruster
+			m_LeftThrust = (m_k1 * headingErr) + (m_k2 * (headingIs - headingTic));
+			//PD control of right thruster
+			m_RightThrust = -(m_k1 * headingErr)
+					- (m_k2 * (headingIs - headingTic));
+			//PD control of depth
+			m_TopThrust = (m_k3 * depthErr) + (m_k4 * (depthIs - depthTic));
+
+			if (m_arduino) {
+				// thruster commands printed to serial port to arduino here
+				m_serial.print(m_LeftThrust);
+				m_serial.print(",");
+				m_serial.print(m_RightThrust);
+				m_serial.print(",");
+				m_serial.print(m_TopThrust);
+				m_serial.print("\n");
+			}
+			double headingTic = headingIs;
+			double depthTic = depthIs;
 			}
 		}
-		// calculates heading relative to +y direction
-		double headingGoal = 90 - atan((Ygoal - Yis) / (Xgoal - Xis));
-		// heading error to be used for PD control
-		double headingErr = headingGoal - headingCurr;
 
-		//PD control of left thruster
-		m_LeftThrust = (m_k1 * headingErr) + (m_k2 * (headingIs - headingPrev));
-		//PD control of right thruster
-		m_RightThrust = -(m_k1 * headingErr)
-				- (m_k2 * (headingIs - headingPrev));
-		//PD control of depth
-		m_TopThrust = (m_k3 * depthErr) + (m_k4 * (depthIs - depthPrev));
-
-		if (m_arduino) {
-			// thruster commands printed to serial port to arduino here
-			m_serial.print(m_LeftThrust);
-			m_serial.print(",");
-			m_serial.print(m_RightThrust);
-			m_serial.print(",");
-			m_serial.print(m_TopThrust);
-			m_serial.print("\n");
-		}
-	}
-}
 }
 
 int main() {

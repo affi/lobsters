@@ -34,7 +34,7 @@ double tic() {
 }
 
 //stolen code here
-class PartyTime {
+class Demo {
 
 	// serial ports open?
 	bool m_arduino; // send directions to serial port?
@@ -64,18 +64,28 @@ class PartyTime {
 	double m_Xwidth;
 	double m_Ywidth;
 	double m_numCoords;
-	double m_path[][];
+	double m_path[121][2];
 	int ind;
 
 	double depthTic;
 	double headingTic;
+	double depthIs;
+	double headingIs;
+	double m_depthGoal;
+
+	double m_k1;
+	double m_k2;
+	double m_k3;
+	double m_k4;
+
+	double m_r;
 
 	Serial m_serial;
 
 public:
 
 	// default constructor
-	PartyTime() :
+	Demo() :
 			// default settings
 			m_pitch(0), m_roll(0), m_yaw(0),
 
@@ -87,7 +97,11 @@ public:
 
 			m_Xwidth(10), m_Ywidth(10), m_numCoords(121),
 
-			depthTic(0), headingTic(0), depthIs(0), headingIs(0)
+			depthTic(0), headingTic(0), depthIs(0), headingIs(0), m_depthGoal(1),
+
+			m_k1(0), m_k2(0), m_k3(0), m_k4(0),
+
+			m_r(0.25)
 
 	{
 	}
@@ -98,12 +112,11 @@ public:
 			m_serial.open("/dev/ttyACM0");
 		}
 		// create the path
-		double m_path[110][2]; //each row is one x,y coordinate
 		int n, m;
 		// fill in the elements of the array
 		for (n = 0; n < m_numCoords; n++) {
 			m_path[n][1] = n / 11;
-			if (m_path[n][1] % 2 == 0) {
+			if ((int)trunc(m_path[n][1]) % 2 == 0) {
 				m_path[n][0] = n % 11;
 			} else {
 				m_path[n][0] = 10 - (n % 11);
@@ -138,30 +151,31 @@ public:
 				break;
 			}
 
-			double Xgoal = [ind][0];;
-			double Ygoal = [ind][1];
+			double Xgoal = m_path[ind][0];
+			double Ygoal = m_path[ind][1];
 
 			//calculate heading using pitch/roll/yaw
 			double headingIs = 0; //read in from serial port
 
-			if (Xgoal - r) < Xis < (Xgoal + r) && (Ygoal - r) < Yis < (Ygoal + r) {
+			if ((Xgoal - m_r) < Xis && Xis < (Xgoal + m_r) && (Ygoal - m_r) < Yis && Yis < (Ygoal + m_r)) {
 				ind++;
 			}
 
-			// carrotCurr is our current target
-			carrotCurr = path(ind);
-			// carrotPrev is our last target
-			if (ind == 0) {
-				carrotPrev = path(0);
-				else {
-					carrotPrev = path(ind - 1);
-				}
-			}
+//			// carrotCurr is our current target
+//			carrotCurr = path(ind);
+//			// carrotPrev is our last target
+//			if (ind == 0) {
+//				carrotPrev = path(0);
+//				else {
+//					carrotPrev = path(ind - 1);
+//				}
+//			}
 
 			// calculates heading relative to +y direction
 			double headingGoal = 90 - atan2((Ygoal - Yis), (Xgoal - Xis));
 			// heading error to be used for PD control
 			double headingErr = headingGoal - headingIs;
+			double depthErr = m_depthGoal - depthIs;
 
 			//PD control of left thruster
 			m_LeftThrust = (m_k1 * headingErr) + (m_k2 * (headingIs - headingTic));
@@ -184,12 +198,11 @@ public:
 			double depthTic = depthIs;
 			}
 		}
+	};
 
-}
-
-int main() {
-	PartyTime party;
-	party.setup();
-	party.loop();
+int main(int argc, char* argv[]) {
+	Demo demo;
+	demo.setup();
+	demo.loop();
 }
 

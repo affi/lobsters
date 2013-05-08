@@ -9,12 +9,14 @@
 using namespace std;
 
 #include <iostream>
+#include <string>
 #include <cstring>
 #include <vector>
 #include <sys/time.h>
 #include "Serial.h"
 #include <stdio.h>
 #include <math.h>
+#define PI (3.141592653589793)
 
 // Needed for getopt / command line options processing
 #include <unistd.h>
@@ -23,7 +25,9 @@ extern char *optarg;
 
 const string usage = "\n"
 		"Usage:\n"
-		//put usage text here
+		"  M [OPTION...] [deviceID]\n" "Options:\n"
+		"  R  -?          Show help options\n"
+		"  L              Arduino (send tag ids over serial port)\n"
 		"\n";
 
 // utility function to provide current system time
@@ -33,11 +37,12 @@ double tic() {
 	return ((double) t.tv_sec + ((double) t.tv_usec) / 1000000.);
 }
 
-//stolen code here
+//http://www.webalice.it/fede.tft/serial_port/serial_port.html
 class Demo {
 
 	// serial ports open?
 	bool m_arduino; // send directions to serial port?
+	bool m_manual; // are we in manual mode?
 	bool m_serialLucille; //receive information from acoustics system
 	bool m_serialJackie; //receive information from sensors
 
@@ -69,15 +74,23 @@ class Demo {
 
 	double depthTic;
 	double headingTic;
-	double depthIs;
 	double headingIs;
 	double m_depthGoal;
 
+	//PD controller constants
 	double m_k1;
 	double m_k2;
 	double m_k3;
 	double m_k4;
 
+	//stuff we get from arduino
+	float pitch;
+	float roll;
+	float yaw;
+	float depthIs;
+	int emergency;
+
+	//defines square around target point - in the square == at the target
 	double m_r;
 
 	Serial m_serial;
@@ -91,13 +104,16 @@ public:
 
 			m_arduino(false),
 
+			m_manual(true),
+
 			m_LeftThrust(0), m_RightThrust(0), m_TopThrust(0),
 
 			ind(0),
 
 			m_Xwidth(10), m_Ywidth(10), m_numCoords(121),
 
-			depthTic(0), headingTic(0), depthIs(0), headingIs(0), m_depthGoal(1),
+			depthTic(0), headingTic(0), depthIs(0), headingIs(0), m_depthGoal(
+					1),
 
 			m_k1(0), m_k2(0), m_k3(0), m_k4(0),
 
@@ -106,17 +122,24 @@ public:
 	{
 	}
 
+	void parse(string s) {
+		// try to parse the line
+		int num = sscanf(s.c_str(), "%f %f %f %f %d", &pitch, &roll, &yaw,
+				&depthIs, &emergency);
+	}
+
 	void setup() {
 		// prepare serial port for communication with Arduino
 		if (m_arduino) {
 			m_serial.open("/dev/ttyACM0");
 		}
+
 		// create the path
 		int n, m;
 		// fill in the elements of the array
 		for (n = 0; n < m_numCoords; n++) {
 			m_path[n][1] = n / 11;
-			if ((int)trunc(m_path[n][1]) % 2 == 0) {
+			if ((int) trunc(m_path[n][1]) % 2 == 0) {
 				m_path[n][0] = n % 11;
 			} else {
 				m_path[n][0] = 10 - (n % 11);
@@ -126,83 +149,127 @@ public:
 
 	void loop() {
 		while (true) {
-			double depthIs;
-			double Xis;
-			double Yis;
-			double pitch;
-			double roll;
-			double yaw;
-			int emergency;
-			// Lucille is sending in information from acoustics
-			if (m_serialLucille) {
-				depthIs = 0;
-				Xis = 0;
-				Yis = 0;
-			}
-			// Jackie is sending in information from sensors
-			if (m_serialJackie) {
-				pitch = 0;
-				roll = 0;
-				yaw = 0;
-				emergency = 0;
-
-			}
-			if (emergency == 1) {
-				break;
-			}
-
-			double Xgoal = m_path[ind][0];
-			double Ygoal = m_path[ind][1];
-
-			//calculate heading using pitch/roll/yaw
-			double headingIs = 0; //read in from serial port
-
-			if ((Xgoal - m_r) < Xis && Xis < (Xgoal + m_r) && (Ygoal - m_r) < Yis && Yis < (Ygoal + m_r)) {
-				ind++;
-			}
-
-//			// carrotCurr is our current target
-//			carrotCurr = path(ind);
-//			// carrotPrev is our last target
-//			if (ind == 0) {
-//				carrotPrev = path(0);
-//				else {
-//					carrotPrev = path(ind - 1);
-//				}
+//			char command;
+//			cin >> command;
+//			if (command == 'm') {
+//				m_manual = true;
+//			} else if (command == 'a') {
+//				m_manual == false;
 //			}
+			if (m_manual == false) {
+//				char manual_order;
+//				cin >> manual_order;
+//				if (manual_order == 'l') {
+//					m_RightThrust = 12;
+//					m_LeftThrust = -12;
+//					m_TopThrust = 0;
+//					usleep(1000);
+//				} else if (manual_order == 'r') {
+//					m_RightThrust = -12;
+//					m_LeftThrust = 12;
+//					m_TopThrust = 0;
+//					usleep(1000);
+//				} else if (manual_order == 'u') {
+//					m_RightThrust = 0;
+//					m_LeftThrust = 0;
+//					m_TopThrust = -12;
+//
+//				} else if (manual_order == 'd') {
+//					m_RightThrust = 0;
+//					m_LeftThrust = 0;
+//					m_TopThrust = 12;
+//				} else {
+//					m_RightThrust = 0;
+//					m_LeftThrust = 0;
+//					m_TopThrust = 0;
+//				}
+//				if (m_arduino) {
+//					// thruster commands printed to serial port to arduino here
+//					m_serial.print(m_LeftThrust);
+//					m_serial.print(",");
+//					m_serial.print(m_RightThrust);
+//					m_serial.print(",");
+//					m_serial.print(m_TopThrust);
+//					m_serial.print("\n");
+//				}
+				//} else {
+				double Xis;
+				double Yis;
+				double pitch;
+				double roll;
+				double yaw;
+				int emergency;
+				// Lucille is sending in information from acoustics
+				if (m_serialLucille) {
+					Xis = 0;
+					Yis = 0;
+				}
+				if (emergency == 1) {
+					break;
+				}
 
-			// calculates heading relative to +y direction
-			double headingGoal = 90 - atan2((Ygoal - Yis), (Xgoal - Xis));
-			// heading error to be used for PD control
-			double headingErr = headingGoal - headingIs;
-			double depthErr = m_depthGoal - depthIs;
+				double Xgoal = m_path[ind][0];
+				double Ygoal = m_path[ind][1];
 
-			//PD control of left thruster
-			m_LeftThrust = (m_k1 * headingErr) + (m_k2 * (headingIs - headingTic));
-			//PD control of right thruster
-			m_RightThrust = -(m_k1 * headingErr)
-					- (m_k2 * (headingIs - headingTic));
-			//PD control of depth
-			m_TopThrust = (m_k3 * depthErr) + (m_k4 * (depthIs - depthTic));
+				//calculate heading using pitch/roll/yaw
+				double headingIs = 0; //read in from serial port
 
-			if (m_arduino) {
-				// thruster commands printed to serial port to arduino here
-				m_serial.print(m_LeftThrust);
-				m_serial.print(",");
-				m_serial.print(m_RightThrust);
-				m_serial.print(",");
-				m_serial.print(m_TopThrust);
-				m_serial.print("\n");
-			}
-			double headingTic = headingIs;
-			double depthTic = depthIs;
+				if ((Xgoal - m_r) < Xis && Xis < (Xgoal + m_r)
+						&& (Ygoal - m_r) < Yis && Yis < (Ygoal + m_r)) {
+					if (ind < 120) {
+						ind++;
+					}
+				}
+
+				// calculates heading relative to +y direction
+				double headingGoal = 90 - atan2((Ygoal - Yis), (Xgoal - Xis));
+				// heading & depth error to be used for PD control
+				double headingErr = headingGoal - headingIs;
+				double depthErr = m_depthGoal - depthIs;
+
+				if (headingErr > (PI)) {
+					headingErr = headingErr - (2 * PI);
+				} else if (headingErr < (PI)) {
+					headingErr = headingErr + (2 * PI);
+				}
+				//PD control of left thruster
+				m_LeftThrust = (m_k1 * headingErr)
+						+ (m_k2 * (headingIs - headingTic));
+				//PD control of right thruster
+				m_RightThrust = -(m_k1 * headingErr)
+						- (m_k2 * (headingIs - headingTic));
+				//PD control of depth
+				m_TopThrust = (m_k3 * depthErr) + (m_k4 * (depthIs - depthTic));
+
+				if (m_arduino) {
+					// thruster commands printed to serial port to arduino here
+					m_serial.print(m_LeftThrust);
+					m_serial.print(",");
+					m_serial.print(m_RightThrust);
+					m_serial.print(",");
+					m_serial.print(m_TopThrust);
+					m_serial.print("\n");
+				}
+				double headingTic = headingIs;
+				double depthTic = depthIs;
 			}
 		}
-	};
 
-int main(int argc, char* argv[]) {
+	}
+}
+;
+
+int main() {
+	Serial serial;
+	serial.open("/dev/ttyUSB0", 38400); // might need to change to your USB port
 	Demo demo;
+	// read and parse one line at a time
+	while (true) {
+		string s = serial.readBytesUntil('\n');
+		demo.parse(s);
+	}
 	demo.setup();
 	demo.loop();
+
 }
 

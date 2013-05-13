@@ -16,6 +16,7 @@ using namespace std;
 #include "Serial.h"
 #include <stdio.h>
 #include <math.h>
+#include <fstream>
 #define PI (3.141592653589793)
 
 // Needed for getopt / command line options processing
@@ -42,6 +43,7 @@ class Demo {
 
 	// serial ports open?
 	bool m_arduino; // send directions to serial port?
+	bool m_fileStream; // send data to text file?
 	bool m_manual; // are we in manual mode?
 	bool m_serialLucille; //receive information from acoustics system
 	bool m_serialJackie; //receive information from sensors
@@ -102,7 +104,7 @@ public:
 			// default settings
 			m_pitch(0), m_roll(0), m_yaw(0),
 
-			m_arduino(false),
+			m_fileStream(true), m_arduino(false),
 
 			m_manual(true),
 
@@ -241,12 +243,20 @@ public:
 				//PD control of depth
 				m_TopThrust = (m_k3 * depthErr) + (m_k4 * (depthIs - depthTic));
 
+				if (m_fileStream) {
+					ofstream myfile("scrapData.txt");
+					if (myfile.is_open()) {
+						myfile << "This is a line.\n";
+						myfile << "This is another line.\n";
+						myfile.close();
+					}
+				}
 				if (m_arduino) {
 					// thruster commands printed to serial port to arduino here
 					m_serial.print(m_LeftThrust);
-					m_serial.print(",");
+					m_serial.print(" ");
 					m_serial.print(m_RightThrust);
-					m_serial.print(",");
+					m_serial.print(" ");
 					m_serial.print(m_TopThrust);
 					m_serial.print("\n");
 				}

@@ -17,6 +17,7 @@ using namespace std;
 #include <stdio.h>
 #include <math.h>
 #include <fstream>
+//#include <stdlib.h>
 #define PI (3.141592653589793)
 
 // Needed for getopt / command line options processing
@@ -44,6 +45,8 @@ class Demo {
 	// serial ports open?
 	bool m_arduino; // send directions to serial port?
 	bool m_fileStream; // send data to text file?
+	bool m_terminal; // print commands to terminal?
+
 	bool m_manual; // are we in manual mode?
 	bool m_serialLucille; //receive information from acoustics system
 	bool m_serialJackie; //receive information from sensors
@@ -101,33 +104,51 @@ public:
 
 	// default constructor
 	Demo() :
-			// default settings
-			m_pitch(0), m_roll(0), m_yaw(0),
+	// default settings
+	m_pitch(0), m_roll(0), m_yaw(0),
 
-			m_fileStream(true), m_arduino(false),
+	m_fileStream(false), m_arduino(false), m_terminal(true),
 
-			m_manual(true),
+	m_serialLucille(false), m_serialJackie(false),
 
-			m_LeftThrust(0), m_RightThrust(0), m_TopThrust(0),
+	m_manual(true),
 
-			ind(0),
+	m_LeftThrust(0), m_RightThrust(0), m_TopThrust(0),
 
-			m_Xwidth(10), m_Ywidth(10), m_numCoords(121),
+	ind(0),
 
-			depthTic(0), headingTic(0), depthIs(0), headingIs(0), m_depthGoal(
-					1),
+	m_Xwidth(10), m_Ywidth(10), m_numCoords(121),
 
-			m_k1(0), m_k2(0), m_k3(0), m_k4(0),
+	depthTic(0), headingTic(0), depthIs(0), headingIs(0), m_depthGoal(1),
 
-			m_r(0.25)
+	m_k1(0), m_k2(0), m_k3(0), m_k4(0),
+
+	m_r(0.25)
 
 	{
 	}
 
 	void parse(string s) {
+		int pitch1;
+		int pitch2;
+		int roll1;
+		int roll2;
+		int yaw1;
+		int yaw2;
+		int depth1;
+		int depth2;
+		float pitch = 0;
 		// try to parse the line
-		int num = sscanf(s.c_str(), "%f %f %f %f %d", &pitch, &roll, &yaw,
-				&depthIs, &emergency);
+		int num = sscanf(s.c_str(), "%d.%d %d.%d %d.%d %d.%d %d", &pitch1,
+				&pitch2, &roll1, &roll2, &yaw1, &yaw2, &depth1, &depth2,
+				&emergency);
+		cout << "num = " << num;
+		cout << ", pitch1 = " << pitch1;
+		cout << ", pitch2 = " << pitch2;
+		pitch = ((float) pitch1) + (((float) pitch2) * 0.1);
+		cout << ", pitch = " << pitch << endl;
+
+		//cout << "pitch " << pitch << endl;
 	}
 
 	void setup() {
@@ -151,50 +172,8 @@ public:
 
 	void loop() {
 		while (true) {
-//			char command;
-//			cin >> command;
-//			if (command == 'm') {
-//				m_manual = true;
-//			} else if (command == 'a') {
-//				m_manual == false;
-//			}
 			if (m_manual == false) {
-//				char manual_order;
-//				cin >> manual_order;
-//				if (manual_order == 'l') {
-//					m_RightThrust = 12;
-//					m_LeftThrust = -12;
-//					m_TopThrust = 0;
-//					usleep(1000);
-//				} else if (manual_order == 'r') {
-//					m_RightThrust = -12;
-//					m_LeftThrust = 12;
-//					m_TopThrust = 0;
-//					usleep(1000);
-//				} else if (manual_order == 'u') {
-//					m_RightThrust = 0;
-//					m_LeftThrust = 0;
-//					m_TopThrust = -12;
-//
-//				} else if (manual_order == 'd') {
-//					m_RightThrust = 0;
-//					m_LeftThrust = 0;
-//					m_TopThrust = 12;
-//				} else {
-//					m_RightThrust = 0;
-//					m_LeftThrust = 0;
-//					m_TopThrust = 0;
-//				}
-//				if (m_arduino) {
-//					// thruster commands printed to serial port to arduino here
-//					m_serial.print(m_LeftThrust);
-//					m_serial.print(",");
-//					m_serial.print(m_RightThrust);
-//					m_serial.print(",");
-//					m_serial.print(m_TopThrust);
-//					m_serial.print("\n");
-//				}
-				//} else {
+				cout << "automatic mode" << endl;
 				double Xis;
 				double Yis;
 				double pitch;
@@ -243,6 +222,9 @@ public:
 				//PD control of depth
 				m_TopThrust = (m_k3 * depthErr) + (m_k4 * (depthIs - depthTic));
 
+				if (m_terminal) {
+					cout << "mterminal" << endl;
+				}
 				if (m_fileStream) {
 					ofstream myfile("scrapData.txt");
 					if (myfile.is_open()) {
@@ -271,7 +253,7 @@ public:
 
 int main() {
 	Serial serial;
-	serial.open("/dev/ttyUSB0", 38400); // might need to change to your USB port
+	serial.open("/dev/tty.usbmodem411", 38400); // might need to change to your USB port
 	Demo demo;
 	// read and parse one line at a time
 	while (true) {

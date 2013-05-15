@@ -131,26 +131,12 @@ public:
 	void parse(string s) {
 		cout << "s = |" << s << "|" << endl;
 
-		int pitch1=0;
-		int pitch2=0;
-		int roll1=0;
-		int roll2=0;
-		int yaw1=0;
-		int yaw2=0;
-		int depth1=0;
-		int depth2=0;
-		float pitch = 0;
 		// try to parse the line
-		int num = sscanf(s.c_str(), "%d.%d,%d.%d,%d.%d,%d.%d,%d", &pitch1,
-				&pitch2, &roll1, &roll2, &yaw1, &yaw2, &depth1, &depth2,
+		int num = sscanf(s.c_str(), "%f,%f,%f,%f,%d", &pitch,&roll,&yaw,&depthIs,
 				&emergency);
-		cout << "num = " << num;
-		cout << ", pitch1 = " << pitch1;
-		cout << ", pitch2 = " << pitch2;
-		pitch = ((float) pitch1) + (((float) pitch2) * 0.01);
+		cout << "num = " << num << endl;
 		cout << ", pitch = " << pitch << endl;
 
-		//cout << "pitch " << pitch << endl;
 	}
 
 	void setup() {
@@ -261,10 +247,10 @@ int main() {
 	while (true) {
 
 		string s = serial.readBytesUntil('\n');
-		cout << "read " << s.length() << " characters" << endl;
-		cout << s << endl;
+		//cout << "read " << s.length() << " characters" << endl;
+		//cout << s << endl;
 		//sleep(1);
-		//demo.parse(s);
+		demo.parse(s);
 		}
 	//demo.setup();
 	//demo.loop();
